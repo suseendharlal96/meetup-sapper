@@ -27,6 +27,7 @@
   import MeetupItem from "../components/Meetup/MeetupItem.svelte";
   import Button from "../components/UI/Button.svelte";
   import meetups from "../meetup-store.js";
+  import Header from "../components/UI/Header.svelte";
   import EditMeetup from "../components/Meetup/EditMeetup.svelte";
 
   export let fetchedMeetups;
@@ -156,6 +157,8 @@
 <svelte:head>
   <title>{activeTitle}</title>
 </svelte:head>
+
+<Header />
 
 <Button type="button" on:click={toggleMode}>
   {!form ? 'Add New' : 'Cancel'}
