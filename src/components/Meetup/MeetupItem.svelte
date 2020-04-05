@@ -92,6 +92,7 @@
   }
 
   .content {
+    color: red;
     height: 4rem;
   }
 </style>
@@ -135,8 +136,6 @@
       on:click={toggleFavorite}>
       {isChanging ? 'Changing...' : isFav ? 'Unfavorite' : 'Favorite'}
     </Button>
-    <Button type="button" on:click={() => dispatch('showDetails', id)}>
-      Show Details
-    </Button>
+    <Button href="/{id}">Show Details</Button>
   </footer>
 </article>

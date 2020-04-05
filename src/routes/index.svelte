@@ -1,31 +1,6 @@
-<script>
-  import { onMount, onDestroy } from "svelte";
-  import MeetupItem from "../components/Meetup/MeetupItem.svelte";
-  import Button from "../components/UI/Button.svelte";
-  import meetups from "../meetup-store.js";
-  import EditMeetup from "../components/Meetup/EditMeetup.svelte";
-  import MeetupDetail from "./MeetupDetail.svelte";
-
-  let fetchedMeetups = [];
-  let isFavourite = false;
-  let actualMeetups;
-  let loader = true;
-  let form = false;
-  let editMode = false;
-  let showDetail = false;
-  let formData;
-  let detailId = null;
-  let noData = true;
-  let activeTitle = "Meetup";
-  let meetupSubscription;
-
-  $: actualMeetups = isFavourite
-    ? fetchedMeetups.filter(data => data.isFavorite === true)
-    : fetchedMeetups;
-
-  onMount(() => {
-    meetupSubscription = meetups.subscribe(items => (fetchedMeetups = items));
-    fetch("https://meetup-svelte-74ea9.firebaseio.com/meetups.json")
+<script context="module">
+  export function preload(page) {
+    return this.fetch("https://meetup-svelte-74ea9.firebaseio.com/meetups.json")
       .then(res => {
         if (!res.ok) {
           throw new Error("Failed");
@@ -33,24 +8,51 @@
         return res.json();
       })
       .then(response => {
-        const fetchedMeetups = [];
-        loader = false;
+        const loadedMeetups = [];
         if (response) {
           for (const key in response) {
-            fetchedMeetups.push({ ...response[key], id: key });
+            loadedMeetups.push({ ...response[key], id: key });
           }
-          meetups.setMeetups(fetchedMeetups);
-          noData = false;
+          return { fetchedMeetups: loadedMeetups };
         }
       })
       .catch(err => {
-        loader = false;
+        this.error(500, "Could not fetch Data");
       });
-  });
+  }
+</script>
 
-  onDestroy(() => {
-    if (meetupSubscription) {
-      meetupSubscription.unsubscribe();
+<script>
+  import { onMount, onDestroy } from "svelte";
+  import MeetupItem from "../components/Meetup/MeetupItem.svelte";
+  import Button from "../components/UI/Button.svelte";
+  import meetups from "../meetup-store.js";
+  import EditMeetup from "../components/Meetup/EditMeetup.svelte";
+
+  export let fetchedMeetups;
+  let loadedMeetups = [];
+  let meetupsSubscription;
+  let loader = true;
+  let noData = true;
+  let isFavourite = false;
+  let actualMeetups;
+  let form = false;
+  let editMode = false;
+  let showDetail = false;
+  let formData;
+  let detailId = null;
+  let activeTitle = "Meetup";
+
+  $: actualMeetups = isFavourite
+    ? loadedMeetups.filter(data => data.isFavorite === true)
+    : loadedMeetups;
+
+  onMount(() => {
+    if (fetchedMeetups) {
+      meetupsSubscription = meetups.subscribe(items => (loadedMeetups = items));
+      meetups.setMeetups(fetchedMeetups);
+      loader = false;
+      noData = false;
     }
   });
 
@@ -85,7 +87,7 @@
   }
 
   function shouldFormShow(event) {
-    // activeTitle = "Add Meetup";
+    activeTitle = "Meetup";
     form = event.detail.showForm;
     editMode = event.detail.showForm;
     loader = event.detail.loader;
@@ -107,9 +109,21 @@
     }
   }
 
-  function closeDetailView() {
-    showDetail = false;
-    activeTitle = "Meetup";
+  function editMeetup(event) {
+    activeTitle = "Edit Meetup";
+    form = event.detail.form;
+    editMode = event.detail.form;
+    const editData = {
+      id: event.detail.id,
+      title: event.detail.title,
+      subtitle: event.detail.subtitle,
+      imageUrl: event.detail.imageUrl,
+      description: event.detail.description,
+      isFav: event.detail.isFav,
+      address: event.detail.address,
+      email: event.detail.email
+    };
+    formData = editData;
   }
 </script>
 
@@ -140,67 +154,60 @@
 </style>
 
 <svelte:head>
-  <title>Sapper Meetup</title>
+  <title>{activeTitle}</title>
 </svelte:head>
 
-{#if !showDetail}
-  <Button type="button" on:click={toggleMode}>
-    {!form ? 'Add New' : 'Cancel'}
-  </Button>
-  {#if form}
-    {#if editMode}
-      <EditMeetup {formData} on:add={shouldFormShow} />
-    {:else}
-      <EditMeetup on:add={shouldFormShow} />
-    {/if}
-  {:else if !loader}
-    {#if !noData}
-      <div class="filter">
-        <Button
-          type="button"
-          color={!isFavourite ? 'success' : null}
-          on:click={() => setFav(0)}>
-          All
-        </Button>
-        <Button
-          type="button"
-          color={isFavourite ? 'success' : null}
-          on:click={() => setFav(1)}>
-          Favorites
-        </Button>
-        <label class="search" for="search">
-          Search:
-          <input
-            class="search"
-            id="search"
-            placeholder="search meetups"
-            on:keyup={searchMeetup}
-            type="text" />
-        </label>
-      </div>
-      <section id="meetups">
-        {#each actualMeetups as meetup}
-          <MeetupItem
-            id={meetup.id}
-            title={meetup.title}
-            subtitle={meetup.subtitle}
-            description={meetup.description}
-            imageUrl={meetup.imageUrl}
-            email={meetup.contactEmail}
-            address={meetup.address}
-            isFav={meetup.isFavorite}
-            on:showDetails
-            on:editMode />
-        {/each}
-      </section>
-
-      <!-- {/if} -->
-    {:else}
-      <h2>No meetups found.Pls add one!</h2>
-    {/if}
+<Button type="button" on:click={toggleMode}>
+  {!form ? 'Add New' : 'Cancel'}
+</Button>
+{#if form}
+  {#if editMode}
+    <EditMeetup {formData} on:add={shouldFormShow} />
   {:else}
-    <h1>Loading.....</h1>
+    <EditMeetup on:add={shouldFormShow} />
+  {/if}
+{:else if !loader}
+  {#if !noData}
+    <div class="filter">
+      <Button
+        type="button"
+        color={!isFavourite ? 'success' : null}
+        on:click={() => setFav(0)}>
+        All
+      </Button>
+      <Button
+        type="button"
+        color={isFavourite ? 'success' : null}
+        on:click={() => setFav(1)}>
+        Favorites
+      </Button>
+      <label class="search" for="search">
+        Search:
+        <input
+          class="search"
+          id="search"
+          placeholder="search meetups"
+          on:keyup={searchMeetup}
+          type="text" />
+      </label>
+    </div>
+    <section id="meetups">
+      {#each actualMeetups as meetup}
+        <MeetupItem
+          id={meetup.id}
+          title={meetup.title}
+          subtitle={meetup.subtitle}
+          description={meetup.description}
+          imageUrl={meetup.imageUrl}
+          email={meetup.contactEmail}
+          address={meetup.address}
+          isFav={meetup.isFavorite}
+          on:editMode={editMeetup} />
+      {/each}
+    </section>
+  {:else}
+    <h2>No meetups found.Pls add one!</h2>
   {/if}
 {:else}
-  <MeetupDetail meetups={$meetups} {detailId} on:close={closeDetailView} />
+  <h1>Loading.....</h1>
 {/if}
